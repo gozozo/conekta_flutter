@@ -6,17 +6,18 @@ private let onCreateCardTokenMethodName = "onCreateCardToken"
 
 public class SwiftConektaFlutterPlugin: NSObject, FlutterPlugin {
     private var conektaProvider: ConektaProvider? = nil
+    private weak var viewController: UIViewController?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "conekta_flutter", binaryMessenger: registrar.messenger())
-        let instance = SwiftConektaFlutterPlugin()
+        let instance = SwiftConektaFlutterPlugin(viewController: registrar.viewController)
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
-    public override init() {
+    private init(viewController: UIViewController?) {
         conektaProvider = ConektaProvider()
-        let viewController = UIApplication.shared.delegate!.window!!.rootViewController as! FlutterViewController
-        conektaProvider?.start(view: viewController)
+        self.viewController = viewController
+        super.init()
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -31,6 +32,13 @@ public class SwiftConektaFlutterPlugin: NSObject, FlutterPlugin {
                                     details: nil))
             }
         } else if call.method == onCreateCardTokenMethodName {
+            guard startConektaIfNeeded() else {
+                result(FlutterError(code: ActivityNotInstantiated.code,
+                                    message: ActivityNotInstantiated.message,
+                                    details: nil))
+                return
+            }
+
             if let card = getCardArguments(arguments: mapArguments) {
                 conektaProvider?.onCreateCardToken(conektaCard: card, callback: { (token, error) in
                     if error == nil {
@@ -45,6 +53,22 @@ public class SwiftConektaFlutterPlugin: NSObject, FlutterPlugin {
                 details: nil))
             }
         }
+    }
+
+    private func startConektaIfNeeded() -> Bool {
+        let activeViewController = viewController ?? UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?
+            .rootViewController
+
+        guard let activeViewController else {
+            return false
+        }
+
+        viewController = activeViewController
+        conektaProvider?.start(view: activeViewController)
+        return true
     }
     
     private func getCardArguments(arguments: Dictionary<String, Any>) -> ConektaCard? {

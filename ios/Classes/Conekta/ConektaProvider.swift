@@ -7,14 +7,26 @@
 
 class ConektaProvider: ConektaProtocol {
     private var conekta: Conekta? = nil
+    private var apiKey: String? = nil
+    private var didCollectDevice = false
     
     func start(view: UIViewController) {
-        conekta = Conekta()
+        if conekta == nil {
+            conekta = Conekta()
+        }
         conekta?.viewController = view
+        conekta?.publicKey = apiKey ?? ""
+
+        guard !didCollectDevice else {
+            return
+        }
+
         conekta?.collectDevice()
+        didCollectDevice = true
     }
     
     func setApiKey(apiKey: String) {
+        self.apiKey = apiKey
         conekta?.publicKey = apiKey
     }
     
